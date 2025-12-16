@@ -49,6 +49,8 @@ def main():
     client_name = params["client_name"]
     use_case_name = params["use_case_name"]
     markets = params.get("markets", [])
+    user_prompt = params.get("user_prompt")
+    budget = params.get("budget")
 
     logger.info("Starting LLM pipeline")
     logger.info("Client: %s | Use case: %s", client_name, use_case_name)
@@ -62,7 +64,9 @@ def main():
         image_uri=image_uri,
         client_name=client_name,
         use_case_name=use_case_name,
-        markets=markets
+        markets=markets,
+        user_prompt=user_prompt,
+        budget=budget
     )
 
     # -------------------------

@@ -5,6 +5,8 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
 from decimal import Decimal
 import os
+import tempfile
+import requests
 
 
 def _try_number(v):
@@ -65,8 +67,9 @@ NUMBER_STYLE = NamedStyle(name="number_style")
 NUMBER_STYLE.number_format = "#,##0.00"
 
 # -------------------------------------------------------------------
-# ARCHITECTURE DIAGRAM SHEET (unchanged)
+# ARCHITECTURE DIAGRAM SHEET 
 # -------------------------------------------------------------------
+
 def write_architecture_diagram_sheet(wb, image_path, use_case_name):
     ws = wb.create_sheet(f"Architecture_{use_case_name}")
 

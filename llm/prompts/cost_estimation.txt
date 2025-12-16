@@ -11,17 +11,39 @@ Below is the architecture interpretation from the previous LLM:
 
 {{solution}}
 
-Your task: infer costs, fill missing values using industry standards, and output
-JSON ONLY in the EXACT structure provided below.
+Additional user-provided context and constraints are given below. These inputs
+are optional but must be honored wherever applicable.
+
+User Input / Custom Assumptions:
+{{user_prompt}}
+
+Budget Constraint (USD):
+{{budget}}
+
+Your task:
+- Infer costs from the architecture description.
+- Incorporate the user-provided input above as explicit assumptions.
+- If details are missing, fill them using realistic industry standards.
+- Ensure the overall monthly and annual cost estimates are **reasonable relative
+  to the provided budget**. If the architecture naturally exceeds the budget,
+  adjust sizing, frequency, or environment assumptions conservatively while
+  clearly documenting these decisions.
+- Use the budget as a guiding constraint, not as a hard cap, unless explicitly
+  stated in the user input.
 
 IMPORTANT RULES:
 - Follow the JSON structure exactly.
+- Output JSON ONLY. No explanations, no commentary.
 - All list-like values must be comma-separated strings, not arrays.
 - All numeric values must be valid numbers.
 - Notes must be written as single-line strings.
-- Monthly costs must be realistic and follow from your pipeline/runtime logic.
-- "source_of_assumption" must clearly state: "Assumed", "Calculated", or the exact source.
-- No additional commentary outside the JSON.
+- Monthly costs must be realistic and internally consistent with pipeline logic.
+- "source_of_assumption" must be one of:
+  - "Assumed"
+  - "Calculated"
+  - A clearly stated source (e.g., Azure Pricing Calculator, Databricks Pricing).
+- Ensure Dev, QA, and Prod environments scale logically relative to each other.
+- Ensure totals reconcile across sections (pipelines → runtime → DBUs → cost).
 
 RETURN JSON IN EXACTLY THIS STRUCTURE:
 
@@ -153,9 +175,9 @@ RETURN JSON IN EXACTLY THIS STRUCTURE:
   ],
 
   "monthly_environment_costs": {
-    "Dev": { "M1": "", "M2": "", ..., "M12": "", "Total": "" },
-    "QA":  { "M1": "", "M2": "", ..., "M12": "", "Total": "" },
-    "Prod":{ "M1": "", "M2": "", ..., "M12": "", "Total": "" }
+    "Dev": { "M1": "", "M2": "", "M3": "", "M4": "", "M5": "", "M6": "", "M7": "", "M8": "", "M9": "", "M10": "", "M11": "", "M12": "", "Total": "" },
+    "QA":  { "M1": "", "M2": "", "M3": "", "M4": "", "M5": "", "M6": "", "M7": "", "M8": "", "M9": "", "M10": "", "M11": "", "M12": "", "Total": "" },
+    "Prod":{ "M1": "", "M2": "", "M3": "", "M4": "", "M5": "", "M6": "", "M7": "", "M8": "", "M9": "", "M10": "", "M11": "", "M12": "", "Total": "" }
   }
 }
 
