@@ -40,7 +40,6 @@ def upload_to_blob_with_sas(file_path, client_name, use_case_name, file_name):
     container_name = "finops-output"
     container = blob_service.get_container_client(container_name)
 
-    # Create container if it doesn't exist
     try:
         container.create_container()
     except:

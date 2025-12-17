@@ -1,0 +1,4 @@
+{
+  "azure_sas_url": "https://costestimatorstorage.blob.core.windows.net/finops-output/new_client/test_usecase/new_client/test_usecase/new_client_consumption_20251217_061120.xlsx?st=2025-12-17T06%3A06%3A21Z&se=2025-12-17T07%3A11%3A21Z&sp=r&sv=2024-11-04&sr=b&sig=JeSM8Z4H5r%2BJbx8TohCrDXpzbg45ZKt/9%2BuGasrUaD4%3D",
+  "drive_link": "https://docs.google.com/spreadsheets/d/1GV9c55YUcWGKv1gBHlVzyBbL9AzohX6t/edit?usp=drivesdk&ouid=117848467746965899458&rtpof=true&sd=true"
+}
