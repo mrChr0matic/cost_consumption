@@ -125,6 +125,7 @@ def run_llm_pipeline(
     client_name: str,
     use_case_name: str,
     markets: list,
+    global_consumption_multiplier: float,
     user_prompt: str,
     budget: int
 ):
@@ -217,7 +218,8 @@ BUDGET:
         client_name,
         use_case_name,
         image_for_excel,
-        markets
+        markets,
+        global_consumption_multiplier
     )
 
 

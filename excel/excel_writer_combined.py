@@ -199,13 +199,14 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 # -------------------------------------------------------------------
 # MONTHLY ENVIRONMENT SHEET (unchanged)
 # -------------------------------------------------------------------
-def write_monthly_environment_sheet(wb, monthly_env, markets=None):
+def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consumption_multiplier=1.0):
     ws = wb.create_sheet("Yearly_Cost")
 
     # -----------------------------
     # Prepare market timeline
     # -----------------------------
-    market_timeline = [{"market": "M1", "multiplier": 1.0, "start_month": 1}]
+    # market_timeline = [{"market": "M0", "multiplier": 1.0, "start_month": 1}]
+    market_timeline = [{"market": "M0", "start_month": 1}]
     if markets:
         market_timeline.extend(markets)
 
@@ -219,7 +220,7 @@ def write_monthly_environment_sheet(wb, monthly_env, markets=None):
             if mk["start_month"] <= m
         ]
         multiplier_sum = sum(
-            mk["multiplier"]
+            global_consumption_multiplier
             for mk in market_timeline
             if mk["start_month"] <= m
         )
@@ -270,7 +271,7 @@ def write_monthly_environment_sheet(wb, monthly_env, markets=None):
 # -------------------------------------------------------------------
 # MAIN ENTRY
 # -------------------------------------------------------------------
-def generate_cost_excel_combined(json_output, file_path, client_name, use_case_name, architecture_image_path=None, markets=None):
+def generate_cost_excel_combined(json_output, file_path, client_name, use_case_name, architecture_image_path=None, markets=None, global_consumption_multiplier=1.0):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
@@ -286,7 +287,7 @@ def generate_cost_excel_combined(json_output, file_path, client_name, use_case_n
     # write_monthly_environment_sheet(wb, monthly_env)
     
     # if(markets):
-    write_monthly_environment_sheet(wb, monthly_env, markets)
+    write_monthly_environment_sheet(wb, monthly_env, markets, global_consumption_multiplier)
 
     # Ensure parent directories exist
     parent_dir = os.path.dirname(file_path)

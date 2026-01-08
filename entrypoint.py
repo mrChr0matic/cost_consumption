@@ -315,6 +315,7 @@ def main():
     client_name = params["client_name"]
     use_case_name = params["use_case_name"]
     markets = params.get("markets", [])
+    global_consumption_multiplier = params.get("global_consumption_multiplier", 1)
     user_prompt = params.get("user_prompt")
     budget = params.get("budget")
 
@@ -323,6 +324,7 @@ def main():
     logger.info("Image URIs: %s", image_uris)
     logger.info("File URIs: %s", file_uris)
     logger.info("Markets: %s", markets)
+    logger.info("Global consumption multiplier: %s", global_consumption_multiplier)
 
     # -------------------------
     # Run LLM pipeline
@@ -333,6 +335,7 @@ def main():
         client_name=client_name,
         use_case_name=use_case_name,
         markets=markets,
+        global_consumption_multiplier = global_consumption_multiplier,
         user_prompt=user_prompt,
         budget=budget
     )
