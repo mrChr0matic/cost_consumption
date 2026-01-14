@@ -2,6 +2,7 @@ from openai import AzureOpenAI
 from excel.excel_writer_combined import generate_cost_excel_combined
 from llm.gdrive import upload_to_drive
 from llm.file_parser import parse_files_to_single_text
+from llm.cleanup import cleanup_local_files
 
 import os
 import base64
@@ -35,7 +36,9 @@ client = AzureOpenAI(
 # Helpers
 # ============================================================
 
-def ensure_local_image(image_uri: str) -> str:
+# def ensure_local_image(image_uri: str) -> str:
+def ensure_local_image(image_uri: str) -> tuple[str, bool]:
+
     """
     Ensures the image exists as a local file.
     Returns a local filesystem path suitable for openpyxl.
@@ -43,7 +46,8 @@ def ensure_local_image(image_uri: str) -> str:
 
     # Already a local file
     if os.path.exists(image_uri):
-        return image_uri
+        # return image_uri
+        return image_uri, False
 
     # HTTPS URL → download to temp
     if image_uri.startswith("http://") or image_uri.startswith("https://"):
@@ -58,7 +62,8 @@ def ensure_local_image(image_uri: str) -> str:
         tmp.write(resp.content)
         tmp.close()
 
-        return tmp.name
+        # return tmp.name
+        return tmp.name, True
 
     raise ValueError(f"Unsupported image_uri: {image_uri}")
 
@@ -207,9 +212,17 @@ BUDGET:
     # Use first image for diagram embedding (if present)
     # image_for_excel = image_uris[0] if image_uris else None
 
+    # image_for_excel = None
+    # if image_uris:
+    #     image_for_excel = ensure_local_image(image_uris[0])
+
     image_for_excel = None
+    temp_images = []
+
     if image_uris:
-        image_for_excel = ensure_local_image(image_uris[0])
+        image_for_excel, is_temp = ensure_local_image(image_uris[0])
+        if is_temp:
+            temp_images.append(image_for_excel)
 
 
     generate_cost_excel_combined(
@@ -234,6 +247,12 @@ BUDGET:
         root_folder_id=dbutils.secrets.get("llm-secrets", "DRIVE_FOLDER_ID"),
         client_name=client_name,
         use_case_name=use_case_name
+    )
+
+    #trial to see if cleanup works
+    cleanup_local_files(
+        excel_path=output_excel,
+        temp_image_paths=temp_images
     )
 
     print("Pipeline completed successfully")

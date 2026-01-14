@@ -4,6 +4,7 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 import json
 from databricks.sdk.runtime import *
+import os
 
 
 try:
@@ -81,6 +82,7 @@ def ensure_drive_path(service, root_folder_id, client_name, use_case_name):
 # Upload file to Drive (Shared Drive safe)
 # -----------------------------
 def upload_file_to_drive(service, file_path, file_name, parent_folder_id):
+    file_name = os.path.basename(file_name)  
     media = MediaFileUpload(
         file_path,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
