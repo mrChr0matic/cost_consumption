@@ -3,20 +3,8 @@ from datetime import datetime, timedelta, timezone
 import os
 from databricks.sdk.runtime import *
 
+CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
-try:
-    dbutils
-except NameError:
-    from pyspark.sql import SparkSession
-    from pyspark.dbutils import DBUtils
-
-    spark = SparkSession.builder.getOrCreate()
-    dbutils = DBUtils(spark)
-
-CONN_STR = dbutils.secrets.get(
-        scope="llm-secrets",
-        key="AZURE_STORAGE_CONNECTION_STRING"
-    )
 
 def upload_to_blob_with_sas(file_path, client_name, use_case_name, file_name):
     connect_str = CONN_STR

@@ -14,16 +14,14 @@ from datetime import datetime
 from urllib.parse import urlparse
 from typing import List
 
-from databricks.sdk.runtime import dbutils
-
 
 # ============================================================
 # Azure OpenAI client
 # ============================================================
 
-OPEN_AI_KEY = dbutils.secrets.get("llm-secrets", "OPEN_AI_API_KEY")
-OPEN_AI_MODEL = dbutils.secrets.get("llm-secrets", "OPEN_AI_MODEL")
-OPEN_AI_ENDPOINT = dbutils.secrets.get("llm-secrets", "OPEN_AI_ENDPOINT")
+OPEN_AI_KEY = os.getenv("OPEN_AI_API_KEY")
+OPEN_AI_MODEL = os.getenv("OPEN_AI_MODEL")
+OPEN_AI_ENDPOINT = os.getenv("OPEN_AI_ENDPOINT")
 
 client = AzureOpenAI(
     api_key=OPEN_AI_KEY,
@@ -36,25 +34,18 @@ client = AzureOpenAI(
 # Helpers
 # ============================================================
 
-# def ensure_local_image(image_uri: str) -> str:
 def ensure_local_image(image_uri: str) -> tuple[str, bool]:
-
     """
     Ensures the image exists as a local file.
     Returns a local filesystem path suitable for openpyxl.
     """
-
-    # Already a local file
     if os.path.exists(image_uri):
-        # return image_uri
         return image_uri, False
 
-    # HTTPS URL → download to temp
     if image_uri.startswith("http://") or image_uri.startswith("https://"):
         resp = requests.get(image_uri, timeout=30)
         resp.raise_for_status()
 
-        # Infer extension (default png)
         parsed = urlparse(image_uri)
         ext = os.path.splitext(parsed.path)[1] or ".png"
 
@@ -62,10 +53,10 @@ def ensure_local_image(image_uri: str) -> tuple[str, bool]:
         tmp.write(resp.content)
         tmp.close()
 
-        # return tmp.name
         return tmp.name, True
 
     raise ValueError(f"Unsupported image_uri: {image_uri}")
+
 
 def load_prompt(path: str) -> str:
     with open(path, "r") as f:
@@ -135,23 +126,22 @@ def run_llm_pipeline(
     budget: int
 ):
     # --------------------------------------------------------
-    # 1️⃣ Parse all images
+    # 1. Parse all images
     # --------------------------------------------------------
     print("Step 1: Parsing architecture images...")
 
     image_summaries = []
 
     for idx, uri in enumerate(image_uris, start=1):
-        print(f"  → Analyzing image {idx}")
+        print(f"  -> Analyzing image {idx}")
         vision_text = analyze_image(uri)
         cleaned_text = architecture_text(vision_text)
         image_summaries.append(cleaned_text)
 
     combined_image_context = "\n\n".join(image_summaries)
 
-
     # --------------------------------------------------------
-    # 2️⃣ Parse all files
+    # 2. Parse all files
     # --------------------------------------------------------
     print("Step 2: Parsing input documents...")
 
@@ -159,9 +149,8 @@ def run_llm_pipeline(
     if file_uris:
         files_context = parse_files_to_single_text(file_uris)
 
-
     # --------------------------------------------------------
-    # 3️⃣ Build final reasoning context
+    # 3. Build final reasoning context
     # --------------------------------------------------------
     print("Step 3: Building final reasoning context...")
 
@@ -179,9 +168,8 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
 {budget if budget is not None else "No explicit budget provided."}
 """.strip()
 
-
     # --------------------------------------------------------
-    # 4️⃣ Cost estimation
+    # 4. Cost estimation
     # --------------------------------------------------------
     print("Step 4: Generating cost JSON...")
 
@@ -197,9 +185,8 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
     cost_json_raw = response.choices[0].message.content
     cost_json = safe_json_parse(cost_json_raw)
 
-
     # --------------------------------------------------------
-    # 5️⃣ Generate Excel
+    # 5. Generate Excel
     # --------------------------------------------------------
     print("Step 5: Creating Excel output...")
 
@@ -209,13 +196,6 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
         f"{client_name}_consumption_{ts}.xlsx"
     )
 
-    # Use first image for diagram embedding (if present)
-    # image_for_excel = image_uris[0] if image_uris else None
-
-    # image_for_excel = None
-    # if image_uris:
-    #     image_for_excel = ensure_local_image(image_uris[0])
-
     image_for_excel = None
     temp_images = []
 
@@ -224,7 +204,6 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
         if is_temp:
             temp_images.append(image_for_excel)
 
-
     generate_cost_excel_combined(
         cost_json,
         output_excel,
@@ -232,25 +211,23 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
         use_case_name,
         image_for_excel,
         markets,
-        global_consumption_multiplier, 
+        global_consumption_multiplier,
         budget
     )
 
-
     # --------------------------------------------------------
-    # 6️⃣ Upload to Drive
+    # 6. Upload to Drive
     # --------------------------------------------------------
     print("Step 6: Uploading to Google Drive...")
 
     drive_result = upload_to_drive(
         file_path=output_excel,
         file_name=output_excel,
-        root_folder_id=dbutils.secrets.get("llm-secrets", "DRIVE_FOLDER_ID"),
+        root_folder_id=os.getenv("DRIVE_FOLDER_ID"),
         client_name=client_name,
         use_case_name=use_case_name
     )
 
-    #trial to see if cleanup works
     cleanup_local_files(
         excel_path=output_excel,
         temp_image_paths=temp_images

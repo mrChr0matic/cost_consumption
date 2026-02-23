@@ -6,22 +6,7 @@ import json
 from databricks.sdk.runtime import *
 import os
 
-
-try:
-    dbutils
-except NameError:
-    from pyspark.sql import SparkSession
-    from pyspark.dbutils import DBUtils
-
-    spark = SparkSession.builder.getOrCreate()
-    dbutils = DBUtils(spark)
-
-SA_INFO = json.loads(
-        dbutils.secrets.get(
-            scope="llm-secrets",
-            key="GOOGLE_DRIVE_SA_JSON"
-        )
-    )
+SA_INFO = json.loads(os.getenv("GOOGLE_DRIVE_SA_JSON"))
 
 def get_or_create_folder(service, folder_name, parent_id):
     query = (

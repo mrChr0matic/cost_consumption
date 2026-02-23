@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 import io
 
 from azure.storage.blob import BlobServiceClient
-from databricks.sdk.runtime import dbutils
 from openai import AzureOpenAI
 
 
@@ -13,9 +12,9 @@ from openai import AzureOpenAI
 # Azure OpenAI client (same as llm.py)
 # ============================================================
 
-OPEN_AI_KEY = dbutils.secrets.get("llm-secrets", "OPEN_AI_API_KEY")
-OPEN_AI_MODEL = dbutils.secrets.get("llm-secrets", "OPEN_AI_MODEL")
-OPEN_AI_ENDPOINT = dbutils.secrets.get("llm-secrets", "OPEN_AI_ENDPOINT")
+OPEN_AI_KEY = os.getenv("OPEN_AI_API_KEY")
+OPEN_AI_MODEL = os.getenv("OPEN_AI_MODEL")
+OPEN_AI_ENDPOINT = os.getenv("OPEN_AI_ENDPOINT")
 
 client = AzureOpenAI(
     api_key=OPEN_AI_KEY,
@@ -29,9 +28,7 @@ client = AzureOpenAI(
 # ============================================================
 
 def read_blob_https(uri: str) -> tuple[bytes, str]:
-    conn_str = dbutils.secrets.get(
-        "llm-secrets", "AZURE_STORAGE_CONNECTION_STRING"
-    )
+    conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
     parsed = urlparse(uri)
     container, blob_path = parsed.path.lstrip("/").split("/", 1)
