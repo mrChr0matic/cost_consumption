@@ -109,7 +109,7 @@ def upload_file_to_drive(service, file_path, file_name, parent_folder_id):
 
 
 # -----------------------------
-# Validate Shared Drive access (recommended)
+# Validate Shared Drive access
 # -----------------------------
 # In validate_shared_drive_access
 def validate_shared_drive_access(service, folder_id):

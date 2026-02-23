@@ -172,10 +172,10 @@ ARCHITECTURE DETAILS:
 DOCUMENT CONSTRAINTS / INPUT FILES:
 {files_context or "No additional documents provided."}
 
-USER CONSTRAINTS:
+USER CONSTRAINTS to be strictly followed with highest priority:
 {user_prompt or "No additional user constraints provided."}
 
-BUDGET:
+BUDGET to be adhered with extremely high priority and the total cost calculated should strictly be close to the provided BUDGET:
 {budget if budget is not None else "No explicit budget provided."}
 """.strip()
 
@@ -232,7 +232,8 @@ BUDGET:
         use_case_name,
         image_for_excel,
         markets,
-        global_consumption_multiplier
+        global_consumption_multiplier, 
+        budget
     )
 
 

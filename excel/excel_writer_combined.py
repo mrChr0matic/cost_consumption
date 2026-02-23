@@ -1,28 +1,110 @@
-# excel_writer_combined.py
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, NamedStyle
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
 from decimal import Decimal
 import os
-import tempfile
-import requests
 
+
+# ============================================================
+# Helpers for normalization
+# ============================================================
+
+def compute_m0_total_from_env(expanded_env: dict) -> float:
+    total = 0.0
+    for env in ("Dev", "QA", "Prod"):
+        v = expanded_env.get(env, {}).get("M1", 0)
+        if isinstance(v, (int, float)):
+            total += v
+    return round(total, 2)
+
+
+def scale_cost_components_to_total(cost_components: list, target_total: float):
+    if not target_total or target_total <= 0:
+        return cost_components
+
+    values = []
+    for c in cost_components:
+        try:
+            values.append(float(c.get("cost_usd", 0)))
+        except:
+            values.append(0.0)
+
+    current_total = sum(values)
+    if current_total == 0:
+        return cost_components
+
+    scale = target_total / current_total
+
+    scaled = []
+    for comp in cost_components:
+        new_comp = comp.copy()
+        try:
+            val = float(comp.get("cost_usd", 0))
+            new_comp["cost_usd"] = round(val * scale, 2)
+        except:
+            pass
+        scaled.append(new_comp)
+
+    return scaled
+
+
+def scale_env_costs_to_budget(monthly_env: dict, budget: float):
+    if not budget or budget <= 0:
+        return monthly_env
+
+    def to_number(v):
+        try:
+            return float(v)
+        except:
+            return None
+
+    current_total = 0.0
+    for env_data in monthly_env.values():
+        for i in range(1, 13):
+            v = to_number(env_data.get(f"M{i}", 0))
+            if v is not None:
+                current_total += v
+
+    if current_total == 0:
+        return monthly_env
+
+    scale = budget / current_total
+
+    scaled = {}
+    for env, env_data in monthly_env.items():
+        new_env = {}
+        env_sum = 0.0
+
+        for k, v in env_data.items():
+            num = to_number(v)
+            if k.startswith("M") and num is not None:
+                new_val = round(num * scale, 2)
+                new_env[k] = new_val
+                env_sum += new_val
+            else:
+                new_env[k] = v
+
+        new_env["Total"] = round(env_sum, 2)
+        scaled[env] = new_env
+
+    return scaled
+
+
+# ============================================================
+# Excel helpers
+# ============================================================
 
 def _try_number(v):
     if v is None:
         return ""
     if isinstance(v, (int, float)):
         return v
-    if isinstance(v, bool):
-        return v
     s = str(v).strip().replace(",", "")
     if s == "":
         return ""
     try:
-        if "." in s:
-            return float(s)
-        return int(s)
+        return float(s) if "." in s else int(s)
     except:
         try:
             return float(Decimal(s))
@@ -46,8 +128,7 @@ def auto_fit_columns(ws, extra_padding=4):
         col_letter = get_column_letter(col[0].column)
         for cell in col:
             try:
-                length = len(str(cell.value)) if cell.value else 0
-                max_len = max(max_len, length)
+                max_len = max(max_len, len(str(cell.value)) if cell.value else 0)
             except:
                 pass
         ws.column_dimensions[col_letter].width = max_len + extra_padding
@@ -60,19 +141,13 @@ TITLE_FONT = Font(size=14, bold=True)
 CURRENCY = NamedStyle(name="currency_style")
 CURRENCY.number_format = '"$"#,##0.00'
 
-INT_STYLE = NamedStyle(name="int_style")
-INT_STYLE.number_format = "#,##0"
 
-NUMBER_STYLE = NamedStyle(name="number_style")
-NUMBER_STYLE.number_format = "#,##0.00"
-
-# -------------------------------------------------------------------
-# ARCHITECTURE DIAGRAM SHEET 
-# -------------------------------------------------------------------
+# ============================================================
+# Architecture sheet
+# ============================================================
 
 def write_architecture_diagram_sheet(wb, image_path, use_case_name):
     ws = wb.create_sheet(f"Architecture_{use_case_name}")
-
     ws["A1"] = "Architecture Diagram"
     ws["A1"].font = TITLE_FONT
 
@@ -81,44 +156,42 @@ def write_architecture_diagram_sheet(wb, image_path, use_case_name):
         return ws
 
     img = XLImage(image_path)
-
-    # Resize image if needed (optional but recommended)
     img.width = min(img.width, 900)
     img.height = min(img.height, 600)
 
     ws.add_image(img, "A3")
-
     ws.column_dimensions["A"].width = 120
     ws.row_dimensions[3].height = 400
-
     return ws
 
-# -------------------------------------------------------------------
-# BASELINE ASSUMPTION SHEET
-# -------------------------------------------------------------------
+
+# ============================================================
+# Baseline sheet
+# ============================================================
+
 def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 
     ws = wb.create_sheet("Baseline_cost_assumption")
-
     row = 1
+
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
     ws.cell(row=row, column=1).value = "CLOUD COST ESTIMATION OVERVIEW"
     ws.cell(row=row, column=1).font = TITLE_FONT
     ws.cell(row=row, column=1).alignment = Alignment(horizontal="center")
     row += 2
 
-    # ---------------------------------------------------------
+    # -----------------------------
     # BASELINE SUMMARY
-    # ---------------------------------------------------------
+    # -----------------------------
     ws.cell(row=row, column=1).value = "Baseline Summary"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
 
     headers = ["Parameter", "Usecase Details", "Source of Assumption", "Notes"]
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=row, column=col, value=h)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
+        c = ws.cell(row=row, column=col, value=h)
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
     row += 1
 
     for entry in baseline_list:
@@ -130,34 +203,31 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
         ])
         row += 1
 
-    row += 2  # 2 row gap
+    row += 2
 
-    # ---------------------------------------------------------
+    # -----------------------------
     # COST COMPONENTS
-    # ---------------------------------------------------------
+    # -----------------------------
     ws.cell(row=row, column=1).value = "Detailed Cost Components"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
 
     headers = ["Cost Component", "Calculation Logic", "Cost ($)", "Source", "Remarks"]
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=row, column=col, value=h)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
+        c = ws.cell(row=row, column=col, value=h)
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
     row += 1
 
     for comp in cost_components:
         cost_val = _try_number(comp.get("cost_usd", ""))
-        row_values = [
+        ws.append([
             comp.get("component", ""),
             comp.get("calculation_logic", ""),
             cost_val,
             comp.get("source", ""),
             comp.get("remarks", "")
-        ]
-        ws.append(row_values)
-
-        # Cost → currency formatting
+        ])
         cell = ws.cell(row=row, column=3)
         if isinstance(cost_val, (float, int)):
             cell.number_format = CURRENCY.number_format
@@ -165,9 +235,9 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 
     row += 2
 
-    # ---------------------------------------------------------
-    # PIPELINE GROUPS
-    # ---------------------------------------------------------
+    # -----------------------------
+    # PIPELINE GROUPS  ✅ RESTORED
+    # -----------------------------
     ws.cell(row=row, column=1).value = "Pipeline Groups"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
@@ -176,10 +246,11 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
         "Pipeline Group", "Data Sources Included", "Refresh Frequency",
         "Runs/Month", "Avg Hours/Run", "Total Hours/Month"
     ]
+
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=row, column=col, value=h)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
+        c = ws.cell(row=row, column=col, value=h)
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
     row += 1
 
     for p in pipelines:
@@ -196,16 +267,14 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
     auto_fit_columns(ws)
     return ws
 
-# -------------------------------------------------------------------
-# MONTHLY ENVIRONMENT SHEET (unchanged)
-# -------------------------------------------------------------------
-def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consumption_multiplier=1.0):
+
+# ============================================================
+# Yearly cost sheet
+# ============================================================
+
+def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consumption_multiplier=1.0, budget=None):
     ws = wb.create_sheet("Yearly_Cost")
 
-    # -----------------------------
-    # Prepare market timeline
-    # -----------------------------
-    # market_timeline = [{"market": "M0", "multiplier": 1.0, "start_month": 1}]
     market_timeline = [{"market": "M0", "start_month": 1}]
     if markets:
         market_timeline.extend(markets)
@@ -214,64 +283,54 @@ def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consum
     multiplier_per_month = {}
 
     for m in range(1, 13):
-        active = [
-            mk["market"]
-            for mk in market_timeline
-            if mk["start_month"] <= m
-        ]
-        multiplier_sum = sum(
-            global_consumption_multiplier
-            for mk in market_timeline
-            if mk["start_month"] <= m
-        )
+        active_markets_per_month[m] = "+".join(mk["market"] for mk in market_timeline if mk["start_month"] <= m)
+        multiplier_per_month[m] = sum(global_consumption_multiplier for mk in market_timeline if mk["start_month"] <= m)
 
-        active_markets_per_month[m] = "+".join(active)
-        multiplier_per_month[m] = multiplier_sum
+    expanded_env = {}
+    for env in ("Dev", "QA", "Prod"):
+        expanded_env[env] = {}
+        for i in range(1, 13):
+            base = _try_number(monthly_env.get(env, {}).get(f"M{i}", 0))
+            expanded_env[env][f"M{i}"] = round(base * multiplier_per_month[i], 2)
 
-    # -----------------------------
-    # Header rows (shifted right)
-    # -----------------------------
+    if budget:
+        expanded_env = scale_env_costs_to_budget(expanded_env, budget)
+
     ws.append(["", "Months"] + [f"m{i}" for i in range(1, 13)] + ["Total"])
-    ws.append(
-        ["", "Markets"] +
-        [active_markets_per_month[i] for i in range(1, 13)] +
-        [""]
-    )
+    ws.append(["", "Markets"] + [active_markets_per_month[i] for i in range(1, 13)] + [""])
 
-    for row in (1, 2):
-        for cell in ws[row]:
+    for r in (1, 2):
+        for cell in ws[r]:
             cell.font = HEADER_FONT
             cell.fill = HEADER_FILL
-            
-    # -----------------------------
-    # Environment rows (shifted right)
-    # -----------------------------
+
     for env in ("Dev", "QA", "Prod"):
-        record = monthly_env.get(env, {})
-        base_months = [_try_number(record.get(f"M{i}", 0)) for i in range(1, 13)]
+        months = [expanded_env[env].get(f"M{i}", 0) for i in range(1, 13)]
+        total = round(sum(months), 2)
+        ws.append(["", env] + months + [total])
 
-        final_months = []
-        for i in range(12):
-            val = base_months[i]
-            if isinstance(val, (int, float)):
-                final_months.append(round(val * multiplier_per_month[i + 1], 2))
-            else:
-                final_months.append("")
-
-        total = sum(v for v in final_months if isinstance(v, (int, float)))
-
-        ws.append(["", env] + final_months + [total])
     ws["A3"] = "Environment"
     ws["A3"].font = HEADER_FONT
     ws["A3"].fill = HEADER_FILL
+
     auto_fit_columns(ws)
-    return ws
+    return expanded_env
 
 
-# -------------------------------------------------------------------
-# MAIN ENTRY
-# -------------------------------------------------------------------
-def generate_cost_excel_combined(json_output, file_path, client_name, use_case_name, architecture_image_path=None, markets=None, global_consumption_multiplier=1.0):
+# ============================================================
+# Main entry
+# ============================================================
+
+def generate_cost_excel_combined(
+    json_output,
+    file_path,
+    client_name,
+    use_case_name,
+    architecture_image_path=None,
+    markets=None,
+    global_consumption_multiplier=1.0,
+    budget=None
+):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
@@ -279,21 +338,27 @@ def generate_cost_excel_combined(json_output, file_path, client_name, use_case_n
     cost_components = json_output.get("detailed_cost_components", [])
     pipelines = json_output.get("pipeline_groups", [])
     monthly_env = json_output.get("monthly_environment_costs", {})
-    
+
     if architecture_image_path:
         write_architecture_diagram_sheet(wb, architecture_image_path, use_case_name)
-        
-    write_combined_sheet(wb, baseline, cost_components, pipelines)
-    # write_monthly_environment_sheet(wb, monthly_env)
-    
-    # if(markets):
-    write_monthly_environment_sheet(wb, monthly_env, markets, global_consumption_multiplier)
 
-    # Ensure parent directories exist
+    expanded_env = write_monthly_environment_sheet(
+        wb,
+        monthly_env,
+        markets,
+        global_consumption_multiplier,
+        budget
+    )
+
+    m0_total = compute_m0_total_from_env(expanded_env)
+
+    cost_components = scale_cost_components_to_total(cost_components, m0_total)
+
+    write_combined_sheet(wb, baseline, cost_components, pipelines)
+
     parent_dir = os.path.dirname(file_path)
     if parent_dir:
         os.makedirs(parent_dir, exist_ok=True)
 
     wb.save(file_path)
     return file_path
-
