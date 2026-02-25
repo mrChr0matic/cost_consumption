@@ -1,0 +1,1 @@
+work_load_type = ["Training", "Batch Inference", "Real-time Inference"]

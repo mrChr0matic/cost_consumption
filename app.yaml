@@ -1,12 +1,4 @@
-command:
-  - bash
-  - -c
-  - |
-      uvicorn backend.app:app \
-        --host 0.0.0.0 \
-        --port=$PORT \
-        --workers 1 \
-        --timeout-keep-alive 600
+command: ["bash", "start.sh"]
 
 env:
   - name: OPEN_AI_API_KEY
@@ -28,10 +20,17 @@ env:
     valueFrom: AZURE_BLOB_CONTAINER
 
   - name: AZURE_STORAGE_CONNECTION_STRING
-    valueFrom: AZURE_STORAGE_CONNECTION_STRING
+    valueFrom: AZURE_CONN_STR
 
   - name: GOOGLE_DRIVE_SA_JSON
     valueFrom: GOOGLE_DRIVE_SA_JSON
 
   - name: DRIVE_FOLDER_ID
-  valueFrom: DRIVE_FOLDER_ID
+    valueFrom: DRIVE_FOLDER_ID
+
+  - name: DATABRICKS_WORKSPACE_URL
+    value: "https://adb-7405615748760571.11.azuredatabricks.net"
+
+
+
+

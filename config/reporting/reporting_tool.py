@@ -1,0 +1,1 @@
+reporting_tool = ["Power BI", "Tableau", "Looker", "Qlik Sense", "Amazon QuickSight"]

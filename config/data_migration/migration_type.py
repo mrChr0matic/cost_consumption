@@ -1,0 +1,1 @@
+migration_type = ["One-time Historical Load", "Ongoing Incremental", "Both"]

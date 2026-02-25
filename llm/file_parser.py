@@ -6,6 +6,7 @@ import io
 
 from azure.storage.blob import BlobServiceClient
 from openai import AzureOpenAI
+import os
 
 
 # ============================================================

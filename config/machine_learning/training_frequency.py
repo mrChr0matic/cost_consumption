@@ -1,0 +1,1 @@
+training_frequency = ["Daily", "Weekly", "Monthly", "On Demand"]

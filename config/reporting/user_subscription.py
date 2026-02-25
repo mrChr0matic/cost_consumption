@@ -1,0 +1,1 @@
+user_subscription = ["Viewer", "Pro", "Premium"]
