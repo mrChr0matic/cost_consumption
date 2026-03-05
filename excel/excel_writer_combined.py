@@ -6,9 +6,7 @@ from decimal import Decimal
 import os
 
 
-# ============================================================
 # Helpers for normalization
-# ============================================================
 
 def compute_m0_total_from_env(expanded_env: dict) -> float:
     total = 0.0
@@ -91,9 +89,7 @@ def scale_env_costs_to_budget(monthly_env: dict, budget: float):
     return scaled
 
 
-# ============================================================
 # Excel helpers
-# ============================================================
 
 def _try_number(v):
     if v is None:
@@ -142,10 +138,7 @@ CURRENCY = NamedStyle(name="currency_style")
 CURRENCY.number_format = '"$"#,##0.00'
 
 
-# ============================================================
 # Architecture sheet
-# ============================================================
-
 def write_architecture_diagram_sheet(wb, image_path, use_case_name):
     ws = wb.create_sheet(f"Architecture_{use_case_name}")
     ws["A1"] = "Architecture Diagram"
@@ -165,10 +158,7 @@ def write_architecture_diagram_sheet(wb, image_path, use_case_name):
     return ws
 
 
-# ============================================================
 # Baseline sheet
-# ============================================================
-
 def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 
     ws = wb.create_sheet("Baseline_cost_assumption")
@@ -180,9 +170,7 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
     ws.cell(row=row, column=1).alignment = Alignment(horizontal="center")
     row += 2
 
-    # -----------------------------
     # BASELINE SUMMARY
-    # -----------------------------
     ws.cell(row=row, column=1).value = "Baseline Summary"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
@@ -205,9 +193,7 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 
     row += 2
 
-    # -----------------------------
     # COST COMPONENTS
-    # -----------------------------
     ws.cell(row=row, column=1).value = "Detailed Cost Components"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
@@ -235,9 +221,7 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
 
     row += 2
 
-    # -----------------------------
-    # PIPELINE GROUPS  ✅ RESTORED
-    # -----------------------------
+    # PIPELINE GROUPS  
     ws.cell(row=row, column=1).value = "Pipeline Groups"
     ws.cell(row=row, column=1).font = HEADER_FONT
     row += 1
@@ -268,9 +252,7 @@ def write_combined_sheet(wb, baseline_list, cost_components, pipelines):
     return ws
 
 
-# ============================================================
 # Yearly cost sheet
-# ============================================================
 
 def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consumption_multiplier=1.0, budget=None):
     ws = wb.create_sheet("Yearly_Cost")
@@ -317,10 +299,7 @@ def write_monthly_environment_sheet(wb, monthly_env, markets=None, global_consum
     return expanded_env
 
 
-# ============================================================
 # Main entry
-# ============================================================
-
 def generate_cost_excel_combined(
     json_output,
     file_path,

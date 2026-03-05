@@ -16,3 +16,4 @@ cloudinary
 databricks-sdk
 python-dotenv
 openai
+uuid

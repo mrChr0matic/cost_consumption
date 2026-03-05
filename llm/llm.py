@@ -15,9 +15,7 @@ from urllib.parse import urlparse
 from typing import List
 
 
-# ============================================================
-# Azure OpenAI client
-# ============================================================
+
 
 OPEN_AI_KEY = os.getenv("OPEN_AI_API_KEY")
 OPEN_AI_MODEL = os.getenv("OPEN_AI_MODEL")
@@ -30,9 +28,7 @@ client = AzureOpenAI(
 )
 
 
-# ============================================================
-# Helpers
-# ============================================================
+
 
 def ensure_local_image(image_uri: str) -> tuple[str, bool]:
     """
@@ -111,9 +107,7 @@ def safe_json_parse(text: str) -> dict:
     return json.loads(cleaned)
 
 
-# ============================================================
-# MAIN PIPELINE
-# ============================================================
+
 
 def run_llm_pipeline(
     image_uris: List[str],
@@ -125,9 +119,7 @@ def run_llm_pipeline(
     user_prompt: str,
     budget: int
 ):
-    # --------------------------------------------------------
     # 1. Parse all images
-    # --------------------------------------------------------
     print("Step 1: Parsing architecture images...")
 
     image_summaries = []
@@ -140,18 +132,14 @@ def run_llm_pipeline(
 
     combined_image_context = "\n\n".join(image_summaries)
 
-    # --------------------------------------------------------
     # 2. Parse all files
-    # --------------------------------------------------------
     print("Step 2: Parsing input documents...")
 
     files_context = ""
     if file_uris:
         files_context = parse_files_to_single_text(file_uris)
 
-    # --------------------------------------------------------
     # 3. Build final reasoning context
-    # --------------------------------------------------------
     print("Step 3: Building final reasoning context...")
 
     full_context = f"""
@@ -168,9 +156,7 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
 {budget if budget is not None else "No explicit budget provided."}
 """.strip()
 
-    # --------------------------------------------------------
     # 4. Cost estimation
-    # --------------------------------------------------------
     print("Step 4: Generating cost JSON...")
 
     cost_prompt_template = load_prompt("llm/prompts/cost_estimation.txt")
@@ -185,9 +171,7 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
     cost_json_raw = response.choices[0].message.content
     cost_json = safe_json_parse(cost_json_raw)
 
-    # --------------------------------------------------------
     # 5. Generate Excel
-    # --------------------------------------------------------
     print("Step 5: Creating Excel output...")
 
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -215,9 +199,7 @@ BUDGET to be adhered with extremely high priority and the total cost calculated 
         budget
     )
 
-    # --------------------------------------------------------
     # 6. Upload to Drive
-    # --------------------------------------------------------
     print("Step 6: Uploading to Google Drive...")
 
     drive_result = upload_to_drive(

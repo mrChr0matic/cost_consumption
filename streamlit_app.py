@@ -1,6 +1,7 @@
 import os
 import base64
 import requests
+import time
 import streamlit as st
 from dotenv import load_dotenv
 from summarizer import summarize_user_prompt, summarize_image_file, summarize_document_file
@@ -408,68 +409,134 @@ with col1:
             st.error("Please enter Client Name and Use Case Name before generating.")
             st.stop()
 
-        with st.spinner("Analyzing and estimating... this may take a few minutes."):
-            clean_prompt = prompt_input.split("Summary:")[0].strip()
+        clean_prompt = prompt_input.split("Summary:")[0].strip()
+        token = get_forwarded_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-Forwarded-Access-Token": token,
+        }
 
-            try:
-                token = get_forwarded_token()
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "X-Forwarded-Access-Token": token,
-                }
+        # ── Step 1: Submit job (returns immediately with job_id) ──────────────────
+        try:
+            submit_resp = requests.post(
+                f"{API_BASE_URL}/estimate",
+                headers=headers,
+                json={
+                    "image_uris": st.session_state.image_urls,
+                    "file_uris": st.session_state.pdf_urls,
+                    "client_name": client_name,
+                    "use_case_name": use_case_name,
+                    "markets": markets,
+                    "global_consumption_multiplier": st.session_state["global_consumption_multiplier"],
+                    "user_prompt": clean_prompt,
+                    "budget": annual_budget if annual_budget > 0 else None,
+                },
+                timeout=15,
+            )
 
-                response = requests.post(
-                    f"{API_BASE_URL}/estimate",
-                    headers=headers,
-                    json={
-                        "image_uris": st.session_state.image_urls,
-                        "file_uris": st.session_state.pdf_urls,
-                        "client_name": client_name,
-                        "use_case_name": use_case_name,
-                        "markets": markets,
-                        "global_consumption_multiplier": st.session_state["global_consumption_multiplier"],
-                        "user_prompt": clean_prompt,
-                        "budget": annual_budget if annual_budget > 0 else None,
-                    },
-                    timeout=600,
+            if is_html_response(submit_resp):
+                st.error(
+                    "Authentication failed: the API returned a login page instead of a response. "
+                    "Your token may be expired or invalid. Please refresh the page and try again."
                 )
+                st.stop()
 
-                # Detect Databricks auth redirect (returns 200 + HTML login page)
-                if is_html_response(response):
-                    st.error(
-                        "Authentication failed: the API returned a login page instead of a response. "
-                        "Your token may be expired or invalid. Please refresh the page and try again."
-                    )
-                    st.stop()
+            if submit_resp.status_code != 200:
+                st.error(f"API error {submit_resp.status_code}: {submit_resp.text}")
+                st.stop()
 
-                if response.status_code != 200:
-                    st.error(f"API error {response.status_code}: {response.text}")
-                    st.stop()
+            st.session_state["current_job_id"] = submit_resp.json()["job_id"]
 
+        except requests.exceptions.Timeout:
+            st.error("Job submission timed out. Please try again.")
+            st.stop()
+        except Exception as e:
+            st.error(f"Failed to submit job: {e}")
+            st.stop()
+
+
+    # ── Step 2: Poll for result (survives reruns as long as job_id is in session) ─
+    if st.session_state.get("current_job_id") and not st.session_state.get("gdrive_link"):
+        job_id = st.session_state["current_job_id"]
+        token = get_forwarded_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-Forwarded-Access-Token": token,
+        }
+
+        poll_placeholder = st.empty()
+
+        with st.spinner("Processing... this may take a few minutes."):
+            for attempt in range(150):   # ~10 min max (150 × 4s)
                 try:
-                    result = response.json()
+                    status_resp = requests.get(
+                        f"{API_BASE_URL}/status/{job_id}",
+                        headers=headers,
+                        timeout=10,
+                    )
+
+                    if is_html_response(status_resp):
+                        poll_placeholder.error(
+                            "Authentication failed while polling. Please refresh and try again."
+                        )
+                        st.session_state["current_job_id"] = None
+                        st.stop()
+
+                    if status_resp.status_code == 404:
+                        poll_placeholder.error("Job not found. It may have expired — please re-submit.")
+                        st.session_state["current_job_id"] = None
+                        st.stop()
+
+                    if status_resp.status_code != 200:
+                        poll_placeholder.warning(f"Unexpected status {status_resp.status_code} — retrying...")
+                        time.sleep(4)
+                        continue
+
+                    data = status_resp.json()
+
+                except requests.exceptions.Timeout:
+                    poll_placeholder.warning(f"Poll timed out (attempt {attempt + 1}) — retrying...")
+                    time.sleep(4)
+                    continue
                 except Exception as e:
-                    st.error(f"JSON parsing failed: {str(e)}\n\nRaw response:\n{response.text[:500]}")
+                    poll_placeholder.warning(f"Polling error (attempt {attempt + 1}): {e} — retrying...")
+                    time.sleep(4)
+                    continue
+
+                # ── Handle terminal states ────────────────────────────────────────
+                if data["status"] == "done":
+                    st.session_state.gdrive_link = data["drive_link"]
+                    st.session_state["current_job_id"] = None
+
+                    # Cleanup ADLS uploads now that the job is complete
+                    for path in st.session_state.get("adls_paths", []):
+                        try:
+                            delete_from_adls(path)
+                        except Exception as cleanup_err:
+                            print(f"Cleanup failed for {path}: {cleanup_err}")
+                    st.session_state.adls_paths.clear()
+
+                    st.rerun()
+
+                elif data["status"] == "error":
+                    st.error(f"Estimation failed: {data.get('error', 'Unknown error')}")
+                    st.session_state["current_job_id"] = None
                     st.stop()
 
-                st.session_state.gdrive_link = result["drive_link"]
+                # ── Still pending ─────────────────────────────────────────────────
+                else:
+                    poll_placeholder.info(
+                        f"Estimating... (check {attempt + 1}/150 — refreshing every 4s)"
+                    )
+                    time.sleep(4)
 
-            except requests.exceptions.Timeout:
-                st.error("Request timed out. The pipeline is taking longer than expected.")
-                st.stop()
-
-            except Exception as e:
-                st.error(f"Cost estimation failed: {str(e)}")
-                st.stop()
-
-            finally:
-                for path in st.session_state.get("adls_paths", []):
-                    try:
-                        delete_from_adls(path)
-                    except Exception as cleanup_err:
-                        print(f"Cleanup failed for {path}: {cleanup_err}")
-                st.session_state.adls_paths.clear()
-
+            # Exhausted all attempts
+            else:
+                st.error(
+                    "Timed out waiting for the result after ~10 minutes. "
+                    "The job may still be running — please refresh the page to check again."
+                )
+                st.session_state["current_job_id"] = None
 
 if st.session_state.gdrive_link:
     st.markdown("---")

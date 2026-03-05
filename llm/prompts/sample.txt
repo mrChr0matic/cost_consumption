@@ -1,0 +1,166 @@
+{
+  "baseline_summary": [
+    {
+      "parameter": "Data Sources Included",
+      "usecase_details": "CRM, ERP, Web Analytics, Marketing Platform",
+      "source_of_assumption": "Assumed",
+      "notes": "Four primary enterprise systems integrated into unified lakehouse."
+    },
+    {
+      "parameter": "Estimated Monthly Data Volume",
+      "usecase_details": "2 TB",
+      "source_of_assumption": "Assumed",
+      "notes": "Moderate enterprise ingestion with structured and semi-structured data."
+    },
+    {
+      "parameter": "Annualized Volume (TB)",
+      "usecase_details": "24",
+      "source_of_assumption": "Calculated",
+      "notes": "2 TB per month multiplied by 12 months."
+    },
+    {
+      "parameter": "Bronze Layer Volume",
+      "usecase_details": "24 TB",
+      "source_of_assumption": "Calculated",
+      "notes": "Raw ingestion retained fully in Bronze."
+    },
+    {
+      "parameter": "Silver Layer Volume",
+      "usecase_details": "18 TB",
+      "source_of_assumption": "Assumed",
+      "notes": "25 percent data reduction after cleansing and transformation."
+    },
+    {
+      "parameter": "Gold Layer Volume",
+      "usecase_details": "12 TB",
+      "source_of_assumption": "Assumed",
+      "notes": "Aggregated business-ready datasets."
+    },
+    {
+      "parameter": "Refresh Frequency - Weekly",
+      "usecase_details": "3 pipelines",
+      "source_of_assumption": "Assumed",
+      "notes": "CRM, Web Analytics and Marketing data refreshed weekly."
+    },
+    {
+      "parameter": "Refresh Frequency - Monthly",
+      "usecase_details": "1 pipeline",
+      "source_of_assumption": "Assumed",
+      "notes": "ERP financial consolidation processed monthly."
+    },
+    {
+      "parameter": "Number of Pipelines",
+      "usecase_details": "4",
+      "source_of_assumption": "Calculated",
+      "notes": "Three weekly plus one monthly pipeline."
+    },
+    {
+      "parameter": "Cluster Size (Dev)",
+      "usecase_details": "4 worker nodes, Standard_DS3_v2",
+      "source_of_assumption": "Assumed",
+      "notes": "Right-sized for development and testing workloads."
+    },
+    {
+      "parameter": "DBUs per Hour",
+      "usecase_details": "5",
+      "source_of_assumption": "Assumed",
+      "notes": "Estimated blended DBU consumption for chosen cluster size."
+    },
+    {
+      "parameter": "DBU Cost per Hour",
+      "usecase_details": "0.55",
+      "source_of_assumption": "Databricks Pricing",
+      "notes": "All-purpose compute pricing assumption."
+    },
+    {
+      "parameter": "Hours per Weekly Pipeline Run",
+      "usecase_details": "2",
+      "source_of_assumption": "Assumed",
+      "notes": "Moderate transformation complexity."
+    },
+    {
+      "parameter": "Hours per Monthly Pipeline Run",
+      "usecase_details": "3",
+      "source_of_assumption": "Assumed",
+      "notes": "ERP consolidation heavier transformation workload."
+    },
+    {
+      "parameter": "Total Runtime Hours (Monthly)",
+      "usecase_details": "27",
+      "source_of_assumption": "Calculated",
+      "notes": "3 weekly pipelines multiplied by 4 runs multiplied by 2 hours plus 1 monthly pipeline multiplied by 3 hours."
+    },
+    {
+      "parameter": "Raw DBU Cost",
+      "usecase_details": "74.25",
+      "source_of_assumption": "Calculated",
+      "notes": "27 hours multiplied by 5 DBUs multiplied by 0.55 USD."
+    },
+    {
+      "parameter": "Final Databricks Compute Cost (Dev Only)",
+      "usecase_details": "400",
+      "source_of_assumption": "Calculated",
+      "notes": "Includes interactive usage buffer and overhead."
+    }
+  ],
+  "detailed_cost_components": [
+    {
+      "component": "Databricks Compute - Dev",
+      "calculation_logic": "27 runtime hours multiplied by 5 DBUs multiplied by 0.55 USD plus 30 percent overhead",
+      "cost_usd": 400,
+      "source": "Calculated",
+      "remarks": "Development environment compute."
+    },
+    {
+      "component": "Databricks Compute - QA",
+      "calculation_logic": "Dev cost multiplied by 0.8 scaling factor",
+      "cost_usd": 320,
+      "source": "Calculated",
+      "remarks": "Reduced workload compared to Dev."
+    },
+    {
+      "component": "Databricks Compute - Prod",
+      "calculation_logic": "Dev cost multiplied by 3 scaling factor",
+      "cost_usd": 1200,
+      "source": "Calculated",
+      "remarks": "Higher SLA and concurrency requirements."
+    },
+    {
+      "component": "Cloud Storage",
+      "calculation_logic": "54 TB total storage multiplied by 20 USD per TB",
+      "cost_usd": 1080,
+      "source": "Assumed",
+      "remarks": "Bronze, Silver and Gold retained data."
+    },
+    {
+      "component": "Networking and Miscellaneous",
+      "calculation_logic": "Estimated 10 percent of compute and storage cost",
+      "cost_usd": 300,
+      "source": "Assumed",
+      "remarks": "Data transfer and auxiliary services."
+    }
+  ],
+  "pipeline_groups": [
+    {
+      "pipeline_name": "Customer and Marketing Weekly Pipelines",
+      "data_sources_included": "CRM, Web Analytics, Marketing Platform",
+      "refresh_frequency": "Weekly",
+      "runs_per_month": 12,
+      "avg_hours_per_run": 2,
+      "total_hours_per_month": 24
+    },
+    {
+      "pipeline_name": "ERP Financial Consolidation",
+      "data_sources_included": "ERP",
+      "refresh_frequency": "Monthly",
+      "runs_per_month": 1,
+      "avg_hours_per_run": 3,
+      "total_hours_per_month": 3
+    }
+  ],
+  "monthly_environment_costs": {
+    "Dev":  { "M1": 400, "M2": 400, "M3": 400, "M4": 400, "M5": 400, "M6": 400, "M7": 400, "M8": 400, "M9": 400, "M10": 400, "M11": 400, "M12": 400, "Total": 4800 },
+    "QA":   { "M1": 320, "M2": 320, "M3": 320, "M4": 320, "M5": 320, "M6": 320, "M7": 320, "M8": 320, "M9": 320, "M10": 320, "M11": 320, "M12": 320, "Total": 3840 },
+    "Prod": { "M1": 1200, "M2": 1200, "M3": 1200, "M4": 1200, "M5": 1200, "M6": 1200, "M7": 1200, "M8": 1200, "M9": 1200, "M10": 1200, "M11": 1200, "M12": 1200, "Total": 14400 }
+  }
+}

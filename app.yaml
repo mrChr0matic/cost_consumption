@@ -31,6 +31,3 @@ env:
   - name: DATABRICKS_WORKSPACE_URL
     value: "https://adb-7405615748760571.11.azuredatabricks.net"
 
-
-
-

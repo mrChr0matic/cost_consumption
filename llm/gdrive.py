@@ -96,7 +96,6 @@ def upload_file_to_drive(service, file_path, file_name, parent_folder_id):
 # -----------------------------
 # Validate Shared Drive access
 # -----------------------------
-# In validate_shared_drive_access
 def validate_shared_drive_access(service, folder_id):
     try:
         folder = service.files().get(
@@ -108,7 +107,6 @@ def validate_shared_drive_access(service, folder_id):
         print("Shared Drive access confirmed:", folder["name"])
 
     except HttpError as e:
-        # Check if the error is the 404 "File not found"
         if e.resp.status == 404:
             raise RuntimeError(
                 f"Google Drive Root Folder ID '{folder_id}' not found. "
@@ -148,7 +146,6 @@ def upload_to_drive(
         use_case_name
     )
 
-    # Upload file
     return upload_file_to_drive(
         service,
         file_path,
