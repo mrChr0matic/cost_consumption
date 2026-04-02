@@ -6,7 +6,6 @@ from decimal import Decimal
 import os
 
 
-# Helpers for normalization
 
 def compute_m0_total_from_env(expanded_env: dict) -> float:
     total = 0.0

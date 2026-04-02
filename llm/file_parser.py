@@ -9,9 +9,6 @@ from openai import AzureOpenAI
 import os
 
 
-# ============================================================
-# Azure OpenAI client (same as llm.py)
-# ============================================================
 
 OPEN_AI_KEY = os.getenv("OPEN_AI_API_KEY")
 OPEN_AI_MODEL = os.getenv("OPEN_AI_MODEL")
@@ -24,9 +21,7 @@ client = AzureOpenAI(
 )
 
 
-# ============================================================
 # Read ADLS HTTPS blob
-# ============================================================
 
 def read_blob_https(uri: str) -> tuple[bytes, str]:
     conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -42,9 +37,7 @@ def read_blob_https(uri: str) -> tuple[bytes, str]:
     return data, filename
 
 
-# ============================================================
 # Upload file to Azure OpenAI
-# ============================================================
 
 def upload_file_to_openai(file_bytes: bytes, filename: str) -> str:
     """
@@ -52,7 +45,7 @@ def upload_file_to_openai(file_bytes: bytes, filename: str) -> str:
     Returns file_id.
     """
     file_obj = io.BytesIO(file_bytes)
-    file_obj.name = filename  # required
+    file_obj.name = filename  
 
     uploaded = client.files.create(
         file=file_obj,
@@ -62,10 +55,7 @@ def upload_file_to_openai(file_bytes: bytes, filename: str) -> str:
     return uploaded.id
 
 
-# ============================================================
 # Parse document using GPT-4.1
-# ============================================================
-
 def parse_document_with_gpt(file_id: str, filename: str) -> str:
     response = client.responses.create(
         model=OPEN_AI_MODEL,

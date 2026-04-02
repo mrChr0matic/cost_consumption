@@ -66,9 +66,6 @@ def _read_image_bytes(image_uri: str) -> bytes:
 
 
 def analyze_image(image_uri: str) -> str:
-    """
-    Vision analysis for a single image.
-    """
     image_bytes = _read_image_bytes(image_uri)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 

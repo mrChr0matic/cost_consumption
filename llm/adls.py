@@ -1,55 +1,39 @@
-from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_blob_sas
-from datetime import datetime, timedelta, timezone
+from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+from azure.storage.filedatalake import DataLakeServiceClient
+from datetime import datetime, timedelta
 import os
-from databricks.sdk.runtime import *
-
-CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
 
-def upload_to_blob_with_sas(file_path, client_name, use_case_name, file_name):
-    connect_str = CONN_STR
-
-    if not connect_str:
-        raise ValueError("AZURE_STORAGE_CONNECTION_STRING not set")
-
-    conn_parts = dict(
-        item.split("=", 1)
-        for item in connect_str.split(";")
-        if "=" in item
-    )
-
-    account_name = conn_parts.get("AccountName")
-    account_key = conn_parts.get("AccountKey")
-
-    if not account_name or not account_key:
-        raise ValueError("Connection string missing AccountName or AccountKey")
-
-    blob_service = BlobServiceClient.from_connection_string(connect_str)
-    container_name = "finops-output"
-    container = blob_service.get_container_client(container_name)
-
-    try:
-        container.create_container()
-    except:
-        pass
-
-    blob_path = f"{client_name}/{use_case_name}/{file_name}"
-
-    with open(file_path, "rb") as f:
-        container.upload_blob(
-            name=blob_path,
-            data=f,
-            overwrite=True
-        )
-
+def generate_sas_url(blob_path, expiry_hours=1):
+    account_name = os.getenv("AZURE_STORAGE_ACCOUNT")
+    account_key = os.getenv("ACCOUNT_KEY")
+    container = os.getenv("AZURE_BLOB_CONTAINER")
     sas_token = generate_blob_sas(
         account_name=account_name,
-        account_key=account_key,
-        container_name=container_name,
+        container_name=container,
         blob_name=blob_path,
+        account_key=account_key,
         permission=BlobSasPermissions(read=True),
-        start=datetime.now(timezone.utc) - timedelta(minutes=5),
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        expiry=datetime.utcnow() + timedelta(hours=expiry_hours)
     )
+    return f"https://{account_name}.blob.core.windows.net/{container}/{blob_path}?{sas_token}"
 
-    return f"https://{account_name}.blob.core.windows.net/{container_name}/{blob_path}?{sas_token}" 
+
+def _get_fs_client():
+    account_name = os.getenv("AZURE_STORAGE_ACCOUNT")
+    account_key = os.getenv("ACCOUNT_KEY")
+    file_system = os.getenv("AZURE_BLOB_CONTAINER")
+    if not all([account_name, account_key, file_system]):
+        raise RuntimeError("Missing ADLS config env vars")
+    service_client = DataLakeServiceClient(
+        account_url=f"https://{account_name}.dfs.core.windows.net",
+        credential=account_key
+    )
+    return service_client.get_file_system_client(file_system)
+
+
+def upload_to_adls(file_bytes: bytes, adls_path: str) -> str:
+    fs_client = _get_fs_client()
+    file_client = fs_client.get_file_client(adls_path)
+    file_client.upload_data(file_bytes, overwrite=True)
+    return generate_sas_url(adls_path)
